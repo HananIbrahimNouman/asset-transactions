@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 let Web3 = require("web3");
-const web3 = new Web3(window.web3.currentProvider);
+const web3 = new Web3('https://mainnet.infura.io/v3/ca1a29fe66dd40dbbc2b5cc2d7fda17c');
+//window.web3.currentProvider if we want to use metamask
 
 export default class UserInfo extends Component {
 
@@ -20,13 +21,13 @@ export default class UserInfo extends Component {
     e.preventDefault();;
     let savedTransactions= [];
     let transactionsToBeSaved = [];
-    let fromStateBlock = this.state.fromBlock;
+    let fromStateBlock = parseInt(this.state.fromBlock) ||0;
 
     const savedData =  await axios.get(`http://localhost:5000/transactions/${this.state.contractAddress}/${this.state.userAddress}`)
 
-    if(savedData.data.data.blockNumber){
+    if(savedData.data.data.blockNumber && savedData.data.data.blockNumber > fromStateBlock){
       savedTransactions= savedData.data.data.savedTransactions;
-      fromStateBlock = savedData.data.data.blockNumber+1;
+      fromStateBlock = parseInt(savedData.data.data.blockNumber)+1;
     }
 
     const contractABI = await axios.get(
@@ -35,47 +36,71 @@ export default class UserInfo extends Component {
 
     const formattedContractABI = await JSON.parse(contractABI.data.result);
     const myContract = new web3.eth.Contract(formattedContractABI, this.state.contractAddress);
-    const currentBlockNumber = await web3.eth.getBlockNumber();
-    let n = await web3.eth.getTransactionCount(this.state.userAddress, currentBlockNumber);
+    const currentBlockNumber = parseInt(await web3.eth.getBlockNumber());
+    let n = parseInt(await web3.eth.getTransactionCount(this.state.userAddress, currentBlockNumber));
     let bal = parseInt(await web3.eth.getBalance(this.state.userAddress, currentBlockNumber));
-    let delta =90000 // can be changed;
-    let helper =0;
-   
-  
+    let delta =500000 // can be changed but will be controlled through feedback;
+    let toBlock=  parseInt(this.state.toBlock) || currentBlockNumber;
+    let fromBlock = toBlock; //as a starting point
+    let flag = true;
+    let storage;
+    
+      console.log("0000TOOO",toBlock)
+      console.log("0000FROOOM",fromBlock)
 
-    for(let i=this.state.toBlock || currentBlockNumber; i>=fromStateBlock || (0 && (n > 0 || bal > 0));i=i-1){
+
+    while( (fromBlock >= fromStateBlock || (n > 0 || bal > 0)) && flag){
       let transferEvents=[];
 
       try{
 
-        let fromBlock= i-((helper+1)*delta)
-        let toBlock= i-(helper*delta)
-
-        // validations
-        if(fromBlock < fromStateBlock || toBlock < 0) fromBlock= fromStateBlock || 0;
+        if( fromBlock-delta >= 0 && fromBlock-delta > fromStateBlock){
+          fromBlock = fromBlock - delta;
+          console.log('11111',fromBlock)
+        } else {
+          fromBlock= fromStateBlock
+          storage = fromBlock - fromStateBlock;
+          flag= false;;
+          console.log('222222222',fromBlock)
+        }
 
         if((toBlock < fromStateBlock) || (toBlock < 0) ) {
-          i = fromStateBlock
+          flag= false;
+          console.log('333333TOOO',typeof toBlock)
+          console.log('333333FROMSTAAATE',typeof fromStateBlock)
         } else {
           transferEvents = await myContract.getPastEvents("Transfer", {
             fromBlock,
             toBlock,
           });
+          console.log('44444FROOOM',fromBlock)
+          console.log('44444TOOOO',toBlock)
+          console.log('44444',transferEvents)
         }
+
+        toBlock = fromBlock -1;
       
-        helper++;
 
         //Transactions should not be more than 1000, but it will take too long if it is much less. 
-        // if(transferEvents<800){
-        // feedback code should come here to maximize delta without missing blocks
-        // }
+        if(transferEvents && (transferEvents.length<7000)){
+          delta = delta * (3/2);
+          console.log('555555',delta)
+        }
+
       } catch(e){
-        console.log(e,'error from getPastEvents with metamask, transactions are more than 1000')
         //feedback code should come here to minimise delta without missing blocks
-        // continue;
+        console.log('error from getPastEvents with metamask, transactions are more than 10000')
+        delta = delta * (1/2);
+        fromBlock = flag ? fromBlock + delta : fromStateBlock+storage        
+        toBlock = fromBlock +1;
+        flag= true;
+        console.log('66666666FROOOM',fromBlock)
+        console.log('66666666TOOOOO',toBlock)
+        continue;
       }
 
       for(let r =0;r<transferEvents.length;r++){
+        console.log('yes!')
         let event = transferEvents[r];
         let tx= await web3.eth.getTransaction(event.transactionHash);
 
@@ -101,8 +126,6 @@ export default class UserInfo extends Component {
       pathname: '/transactions',
       state: { allTransactions: savedTransactions.concat(transactionsToBeSaved) }
     })
-
-    console.log(transactionsToBeSaved,"finalTransactionsToBeSaved") 
 }
 
   render() {
@@ -135,7 +158,6 @@ export default class UserInfo extends Component {
         <div className="form-group"> 
           <label>from Block: </label>
           <input  type="text"
-              required
               className="form-control"
               value={this.state.fromBlock}
               onChange={(e)=>this.setState({
@@ -146,7 +168,6 @@ export default class UserInfo extends Component {
         <div className="form-group"> 
           <label>to Block: </label>
           <input  type="text"
-              required
               className="form-control"
               value={this.state.toBlock}
               onChange={(e)=>this.setState({

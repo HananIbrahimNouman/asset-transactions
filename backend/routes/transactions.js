@@ -45,7 +45,14 @@ router.route('/add/:assetAddress/:userAddress').post(async (req, res) => {
                 to,
                 value
               });
-              newTransaction.save()
+
+              const savedTans = await Transaction.findOne({
+                hash
+              })
+
+              if(!savedTans){
+                newTransaction.save()
+              }
         }
 
         const LatestRecordInfo = await LatestRecord.findOne({

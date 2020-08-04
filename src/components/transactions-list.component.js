@@ -14,12 +14,9 @@ const Transaction = props => (
 export default class TransactionsList extends Component {
 
   transactionList() {
-    console.log(this.props,"propssss")
 
-    console.log(this.props.location,"location")
 
     return this.props && this.props.location && this.props.location.state && this.props.location.state.allTransactions.map(transaction => {
-      console.log(transaction,"transaction")
       return <Transaction transaction={transaction}/>;
     })
   }
