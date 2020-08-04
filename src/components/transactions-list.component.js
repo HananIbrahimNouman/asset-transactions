@@ -13,6 +13,9 @@ const Transaction = props => (
 
 export default class TransactionsList extends Component {
 
+  //componentDidMount shouldve been built, to call fetch txs instead of passing them as props with a state management like rematch to populate addresses.
+  //hashes should show that a user can see the long hash
+
   transactionList() {
 
 

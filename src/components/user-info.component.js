@@ -187,7 +187,7 @@ export default class UserInfo extends Component {
   }
 }
 
-// another way that will take too long too because of checking each and every block
+// another way that will take too long too because of checking each and every block but NOT RECOMMENDED
 
 // const userAddress = this.state.userAddress;
 // const assetAddress= this.state.contractAddress;
